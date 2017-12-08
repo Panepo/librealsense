@@ -9,6 +9,8 @@ Linux | Windows |
 ## Overview
 **Intel® RealSense™ SDK 2.0** is a cross-platform library for Intel® RealSense™ depth cameras (D400 series and the SR300). 
 
+> For the latest release and further information such as supporting OS and platforms, please refer to [latest release](https://github.com/IntelRealSense/librealsense/releases/latest)
+
 > For other Intel® RealSense™ devices (F200, R200, LR200 and ZR300), please refer to the [latest legacy release](https://github.com/IntelRealSense/librealsense/tree/v1.12.1).
 
 The SDK allows depth and color streaming, and provides intrinsic and extrinsic calibration information.
@@ -23,21 +25,21 @@ Developer kits containing the necessary hardware to use this library are availab
 Information about the Intel® RealSense™ technology at [realsense.intel.com](https://realsense.intel.com)
 
 ## What’s included in the SDK:
-**[Tools for harnessing your depth camera’s capabilities](https://github.com/IntelRealSense/librealsense/tree/development/tools)** Including:
+**[Tools for harnessing your depth camera’s capabilities](./tools)** Including:
 
-- **[Intel® RealSense™ Viewer](https://github.com/IntelRealSense/librealsense/tree/development/tools/realsense-viewer)**
+- **[Intel® RealSense™ Viewer](./tools/realsense-viewer)**
    With this application, you can quickly access your Intel® RealSense™ Depth Camera to view the depth stream, visualize point clouds, record and playback streams, configure your camera settings and much more.
 
-- **[Depth Quality Tool](https://github.com/IntelRealSense/librealsense/tree/development/tools/depth-quality)**
+- **[Depth Quality Tool](./tools/depth-quality)**
    This application allows you to test the camera’s depth quality, including: standard deviation from plane fit, normalized RMS – the subpixel accuracy, distance accuracy and fill rate. You should be able to easily get and interpret several of the depth quality metrics and record and save the data for offline analysis.
    
  - **Other Debug Tools** as can be seen in the tools directory
 
-**[Code Samples to Start Prototyping Quickly](https://github.com/IntelRealSense/librealsense/tree/development/examples)**
+**[Code Samples to Start Prototyping Quickly](./examples)**
    These simple examples demonstrate how to easily use the SDK to include code snippets that access the camera into your applications.
 
 **[Wrappers](https://github.com/IntelRealSense/librealsense/tree/development/wrappers)**
-  We provide a C, C++, [Python](./wrappers/python), [Node.js](./wrappers/nodejs) API, [ROS](https://github.com/intel-ros/realsense/releases) and [LabVIEW](./wrappers/labview). More to come, including C# and Matlab.
+  We provide a C, C++, [Python](./wrappers/python), [Node.js](./wrappers/nodejs) API, [ROS](https://github.com/intel-ros/realsense/releases) and [LabVIEW](./wrappers/labview). More to come, including C# (.NET Framework), Unity and Matlab.
 
 
 ## Quick Start
