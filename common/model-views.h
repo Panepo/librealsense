@@ -121,6 +121,7 @@ namespace rs2
         static const textual_icon plus_circle              { u8"\uf055" };
         static const textual_icon download                 { u8"\uf019" };
         static const textual_icon upload                   { u8"\uf093" };
+        static const textual_icon bar_chart                { u8"\uf080" };
     }
 
     class subdevice_model;
@@ -178,7 +179,7 @@ namespace rs2
     class option_model
     {
     public:
-        bool draw(std::string& error_message, notifications_model& model);
+        bool draw(std::string& error_message, notifications_model& model,bool new_line=true, bool use_option_name = true);
         void update_supported(std::string& error_message);
         void update_read_only_status(std::string& error_message);
         void update_all_fields(std::string& error_message, notifications_model& model);
@@ -189,7 +190,6 @@ namespace rs2
         rs2_option opt;
         option_range range;
         std::shared_ptr<options> endpoint;
-        bool* invalidate_flag;
         bool supported = false;
         bool read_only = false;
         float value = 0.0f;
@@ -257,7 +257,6 @@ namespace rs2
         std::shared_ptr<options> _block;
         std::map<int, option_model> options_metadata;
         std::string _name;
-        subdevice_model* _owner;
         std::function<rs2::frame(rs2::frame)> _invoker;
     };
 
@@ -265,9 +264,7 @@ namespace rs2
     {
     public:
         static void populate_options(std::map<int, option_model>& opt_container,
-            const device& dev,
-            const sensor& s,
-            bool* options_invalidated,
+            const std::string& opt_base_label,
             subdevice_model* model,
             std::shared_ptr<options> options,
             std::string& error_message);
@@ -283,7 +280,7 @@ namespace rs2
         void draw_options(const std::vector<rs2_option>& drawing_order,
                           bool update_read_only_options, std::string& error_message,
                           notifications_model& model);
-        int num_supported_non_default_options() const;
+        uint64_t num_supported_non_default_options() const;
         bool draw_option(rs2_option opt, bool update_read_only_options,
             std::string& error_message, notifications_model& model)
         {
@@ -372,7 +369,7 @@ namespace rs2
         std::shared_ptr<processing_block_model> disparity_to_depth;
 
         std::vector<std::shared_ptr<processing_block_model>> post_processing;
-        bool post_processing_enabled = true;
+        bool post_processing_enabled = false;
         std::vector<std::shared_ptr<processing_block_model>> const_effects;
     };
 
@@ -402,8 +399,8 @@ namespace rs2
 
         bool is_stream_alive();
 
-        void show_stream_footer(const rect& stream_rect,const mouse_info& mouse);
-        void show_stream_header(ImFont* font, rs2::rect stream_rect, viewer_model& viewer);
+        void show_stream_footer(ImFont* font, const rect& stream_rect,const mouse_info& mouse);
+        void show_stream_header(ImFont* font, const rect& stream_rect, viewer_model& viewer);
 
         void snapshot_frame(const char* filename,viewer_model& viewer) const;
 
@@ -432,7 +429,9 @@ namespace rs2
         rect _normalized_zoom{0, 0, 1, 1};
         int color_map_idx = 1;
         bool show_stream_details = false;
+        rect curr_info_rect{};
         temporal_event _stream_not_alive;
+        bool show_map_ruler = true;
     };
 
     std::pair<std::string, std::string> get_device_name(const device& dev);
@@ -499,8 +498,8 @@ namespace rs2
             viewer_model& viewer,
             bool update_read_only_options);
         bool prompt_toggle_advanced_mode(bool enable_advanced_mode, const std::string& message_text,
-            std::vector<std::string>& restarting_device_info, 
-            viewer_model& view, 
+            std::vector<std::string>& restarting_device_info,
+            viewer_model& view,
             ux_window& window);
         void load_viewer_configurations(const std::string& json_str);
         void save_viewer_configurations(std::ofstream& outfile, nlohmann::json& j);
@@ -537,10 +536,10 @@ namespace rs2
 
         static const int MAX_LIFETIME_MS = 10000;
         int height = 40;
-        int index;
+        int index = 0;
         std::string message;
-        double timestamp;
-        rs2_log_severity severity;
+        double timestamp = 0.0;
+        rs2_log_severity severity = RS2_LOG_SEVERITY_NONE;
         std::chrono::high_resolution_clock::time_point created_time;
         // TODO: Add more info
     };
@@ -603,16 +602,18 @@ namespace rs2
             keep_calculating(true),
             depth_stream_active(false),
             resulting_queue_max_size(20),
-            resulting_queue(resulting_queue_max_size),
-//            frames_queue(4),
-            t([this]() {render_loop(); })
+            resulting_queue(static_cast<unsigned int>(resulting_queue_max_size)),
+            t([this]() {render_loop(); }),
+            pc(new pointcloud())
         {
+            std::string s;
+            pc_gen = std::make_shared<processing_block_model>(nullptr, "Pointclould Engine", pc, [=](rs2::frame f) { return pc->calculate(f); }, s);
             processing_block.start(resulting_queue);
         }
 
         ~post_processing_filters() { stop(); }
 
-        void update_texture(frame f) { pc.map_to(f); }
+        void update_texture(frame f) { pc->map_to(f); }
 
         void stop()
         {
@@ -648,6 +649,9 @@ namespace rs2
         rs2::frame_queue syncer_queue;
         rs2::frame_queue resulting_queue;
 
+        std::shared_ptr<pointcloud> get_pc() const { return pc; }
+        std::shared_ptr<processing_block_model> get_pc_model() const {  return pc_gen; }
+
     private:
         viewer_model& viewer;
 
@@ -658,9 +662,10 @@ namespace rs2
         rs2::frame apply_filters(rs2::frame f);
         rs2::frame last_tex_frame;
         rs2::processing_block processing_block;
-        pointcloud pc;
+        std::shared_ptr<pointcloud> pc;
         rs2::frameset model;
         std::atomic<bool> keep_calculating;
+        std::shared_ptr<processing_block_model> pc_gen;
 
         std::thread t;
 
@@ -680,8 +685,8 @@ namespace rs2
             icon[pressed] = icon_pressed;
         }
 
-        void toggle_button() { state_pressed = !state_pressed; }            
-        void set_button_pressed(bool p) { state_pressed = p; }            
+        void toggle_button() { state_pressed = !state_pressed; }
+        void set_button_pressed(bool p) { state_pressed = p; }
         bool is_pressed() { return state_pressed; }
         std::string get_tooltip() { return(state_pressed ? tooltip[pressed]: tooltip[unpressed]); }
         std::string get_icon() { return(state_pressed ? icon[pressed] : icon[unpressed]); }
@@ -694,7 +699,7 @@ namespace rs2
         };
 
         bool state_pressed = false;
-        std::string tooltip[2];        
+        std::string tooltip[2];
         std::string icon[2];
     };
 
@@ -757,10 +762,10 @@ namespace rs2
         colored_cube camera_box{ { { f1,colors[0] },{ f2,colors[1] },{ f3,colors[2] },{ f4,colors[3] },{ f5,colors[4] },{ f6,colors[5] } } };
         float3 center_left{ v5.x + len_x / 3, v6.y - len_y / 3, v5.z };
         float3 center_right{ v6.x - len_x / 3, v6.y - len_y / 3, v5.z };
-                
+
         std::vector<tracked_point> trajectory;
         std::vector<float2> boundary;
-        
+
     };
 
     class viewer_model
@@ -811,7 +816,7 @@ namespace rs2
 
         void show_event_log(ImFont* font_14, float x, float y, float w, float h);
 
-        void show_3dviewer_header(ImFont* font, rs2::rect stream_rect, bool& paused);
+        void show_3dviewer_header(ImFont* font, rs2::rect stream_rect, bool& paused, std::string& error_message);
 
         void update_3d_camera(const rect& viewer_rect,
                               mouse_info& mouse, bool force = false);
@@ -860,11 +865,26 @@ namespace rs2
 
         rs2::asynchronous_syncer s;
     private:
+        struct rgb {
+            uint32_t r, g, b;
+        };
+
+        struct rgb_per_distance {
+            float depth_val;
+            rgb rgb_val;
+        };
 
         friend class post_processing_filters;
         std::map<int, rect> get_interpolated_layout(const std::map<int, rect>& l);
         void show_icon(ImFont* font_18, const char* label_str, const char* text, int x, int y,
                        int id, const ImVec4& color, const std::string& tooltip = "");
+        void draw_color_ruler(const mouse_info& mouse,
+                              const stream_model& s_model,
+                              const rect& stream_rect,
+                              std::vector<rgb_per_distance> rgb_per_distance_vec,
+                              float ruler_length,
+                              const std::string& ruler_units);
+        float calculate_ruler_max_distance(const std::vector<float>& distances) const;
 
         streams_layout _layout;
         streams_layout _old_layout;

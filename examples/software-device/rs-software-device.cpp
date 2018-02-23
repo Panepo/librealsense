@@ -8,11 +8,11 @@
 
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <../third-party/stb_image_write.h>
-#include <../common/res/int-rs-splash.hpp>
+#include <stb_image_write.h>
+#include <int-rs-splash.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <../third-party/stb_image.h>
+#include <stb_image.h>
 
 const int W = 640;
 const int H = 480;
@@ -70,7 +70,7 @@ public:
         if (now - last > std::chrono::milliseconds(1))
         {
             app_state.yaw -= 1;
-            wave_base += 0.1;
+            wave_base += 0.1f;
             last = now;
 
             for (int i = 0; i < depth_frame.y; i++)
@@ -191,7 +191,7 @@ int main(int argc, char * argv[]) try
             // Upload the color frame to OpenGL
             app_state.tex.upload(color);
         }
-        draw_pointcloud(app, app_state, points);
+        draw_pointcloud(app.width(), app.height(), app_state, points);
     }
 
     return EXIT_SUCCESS;
